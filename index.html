@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Berlin Trip - Koobideh, Sandwiches, Jigar & Steaks</title>
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --bg-dark: #090e1a;
+      --bg-card: #151f32;
+      --bg-hover: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-cyan: #38bdf8;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-purple: #c084fc;
+      --accent-rose: #fb7185;
+      --accent-red: #ef4444;
+      --border: #233149;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg-dark); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+    
+    /* Header */
+    header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      z-index: 1000;
+    }
+    .brand h1 {
+      font-size: 17px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #ef4444, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .brand p { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+
+    .day-selector {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .day-btn {
+      background: #090e1a;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 6px 11px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .day-btn:hover { background: #1e293b; color: var(--text-main); }
+    .day-btn.active {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: var(--accent-red);
+      color: var(--accent-red);
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);
+    }
+
+    /* Main layout */
+    .layout {
+      display: grid;
+      grid-template-columns: 440px 1fr;
+      flex: 1;
+      height: calc(100vh - 62px);
+      overflow: hidden;
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; grid-template-rows: 320px 1fr; }
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--bg-dark);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+    
+    /* Food Highlights Banner */
+    .food-highlight-banner {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.18), rgba(245, 158, 11, 0.18));
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 12px;
+      color: #fed7aa;
+      line-height: 1.45;
+    }
+    .food-highlight-banner strong { color: #f87171; }
+
+    /* Day Overview Banner */
+    .day-banner {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent-red);
+      border-radius: 9px;
+      padding: 11px 13px;
+    }
+    .day-banner-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--accent-red);
+      margin-bottom: 3px;
+    }
+    .day-banner-sub {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Timeline Transit Box */
+    .transit-schedule {
+      background: #111a2d;
+      border: 1px solid #233149;
+      border-radius: 9px;
+      padding: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+    .transit-step {
+      display: flex;
+      gap: 9px;
+      align-items: flex-start;
+    }
+    .step-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #1e293b;
+      border: 1.5px solid var(--accent-red);
+      color: var(--accent-red);
+      font-size: 10px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .step-content { flex: 1; }
+    .step-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 3px;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .step-name { font-size: 12px; font-weight: 700; color: #f1f5f9; flex: 1; min-width: 140px; }
+    .step-badge-group { display: flex; gap: 5px; align-items: center; }
+    .step-time { font-size: 10.5px; font-weight: 700; color: var(--accent-emerald); background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+    .step-walk { font-size: 10.5px; font-weight: 700; color: #fbbf24; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+    .step-route { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+
+    /* Return Box */
+    .return-strip {
+      background: rgba(251, 113, 133, 0.1);
+      border: 1px solid rgba(251, 113, 133, 0.3);
+      border-radius: 7px;
+      padding: 8px 10px;
+      font-size: 11.5px;
+      color: #fecdd3;
+    }
+    .return-strip strong { color: #fb7185; }
+
+    /* Cards */
+    .place-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+    .place-card:hover {
+      border-color: #64748b;
+      transform: translateY(-1px);
+      background: #192742;
+    }
+    .place-card.active-card {
+      border-color: var(--accent-red);
+      background: #201e30;
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.25);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 4px;
+    }
+    .pin-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      color: white;
+      font-size: 10.5px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .place-name { font-size: 13px; font-weight: 700; color: var(--text-main); flex: 1; }
+    .place-tag { font-size: 9.5px; padding: 1px 5px; border-radius: 6px; font-weight: 700; text-transform: uppercase; }
+    .place-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.4; margin-bottom: 6px; }
+
+    /* Map container */
+    #map { width: 100%; height: 100%; background: #e2e8f0; }
+
+    /* Custom Leaflet popup */
+    .leaflet-popup-content-wrapper {
+      background: #1e293b;
+      color: #f8fafc;
+      border-radius: 9px;
+      border: 1px solid #475569;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .leaflet-popup-tip { background: #1e293b; }
+    .popup-box h3 { font-size: 14px; margin-bottom: 3px; color: #ef4444; font-weight: 800; }
+    .popup-box p { font-size: 11.5px; color: #cbd5e1; line-height: 1.4; margin-bottom: 5px; }
+    .popup-pill { display: inline-block; background: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+
+    /* Map Marker Pin */
+    .custom-map-pin {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px !important;
+      height: 26px !important;
+      border-radius: 50%;
+      border: 2px solid #ffffff;
+      color: white;
+      font-weight: 800;
+      font-size: 11px;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+      cursor: pointer;
+    }
+
+    /* Floating Legend */
+    .map-legend {
+      position: absolute;
+      bottom: 22px;
+      right: 22px;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid var(--border);
+      padding: 9px 13px;
+      border-radius: 8px;
+      font-size: 11px;
+      z-index: 1000;
+      backdrop-filter: blur(6px);
+      line-height: 1.55;
+    }
+    .legend-item { display: flex; align-items: center; gap: 7px; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <h1>Berlin Trip – Koobideh, Sandwiches, Jigar & Steaks</h1>
+      <p>Base: <strong>acama Hotel Kreuzberg (€366)</strong> · Feasts: <strong>Kourosh Koobideh</strong>, <strong>Mustafa’s Sandwich</strong>, <strong>Doyum Jigar</strong> & <strong>Block House Steaks</strong></p>
+    </div>
+    <div class="day-selector">
+      <button class="day-btn" id="btnAll" onclick="showAll()">All Places</button>
+      <button class="day-btn active" id="btnDay1" onclick="selectDay(1)">Day 1 (Koobideh 🍢)</button>
+      <button class="day-btn" id="btnDay2" onclick="selectDay(2)">Day 2 (Mustafa’s Sandwich 🥪)</button>
+      <button class="day-btn" id="btnDay3" onclick="selectDay(3)">Day 3 (Jigar Foroshi 🫀)</button>
+      <button class="day-btn" id="btnDay4" onclick="selectDay(4)">Day 4 (Bavarian Knuckle 🍺)</button>
+      <button class="day-btn" id="btnDay5" onclick="selectDay(5)">Day 5 (Affordable Steak 🥩)</button>
+      <button class="day-btn" id="btnDay6" onclick="selectDay(6)">Day 6 (Farewell Meal 🚆)</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar"></div>
+
+    <!-- Map -->
+    <div style="position: relative; width: 100%; height: 100%;">
+      <div id="map"></div>
+      
+      <div class="map-legend">
+        <strong style="color: #cbd5e1; display: block; margin-bottom: 3px;">Map Legend:</strong>
+        <div class="legend-item"><span class="legend-dot" style="background:#f59e0b;"></span> Hotel Base (Mitte)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#84cc16;"></span> Top-Rated German Restaurant (4.7★)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span> Charcoal Skewers (Koobideh & Jigar)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#dc2626;"></span> Famous Steakhouse (Block House)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#10b981;"></span> Water Park & Spas</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#ec4899;"></span> Amusement Park (Winterzeit)</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const HOTEL = {
+      id: 'hotel',
+      name: 'acama Hotel Kreuzberg (Best Budget: €366 for 5 Nights)',
+      coords: [52.4988, 13.3855],
+      catColor: '#f59e0b',
+      tag: 'Base Hotel (€73/nt)',
+      desc: 'Tempelhofer Ufer 8-9 (Kreuzberg). Private double room with private bathroom (€366 for 5 nights = €73.20/night, Nov 23–28, saves €172 vs Meininger!). Located directly on the Landwehrkanal waterfront promenade, 2 min walk to U-Bahn Möckernbrücke (U1/U3/U7) and Hallesches Tor (U6).'
+    };
+
+    const DAYS_DATA = {
+      1: {
+        date: 'Monday, November 23, 2026',
+        title: 'Day 1: Arrival, Christmas Market & Famous Charcoal Koobideh',
+        sub: 'Arrive from Amsterdam, check in at acama Hotel on the Landwehrkanal, explore the magical Gendarmenmarkt Christmas Market, then feast on Berlin’s premier charcoal-grilled Chelo Kabab Koobideh at Kourosh!',
+        foodType: '🍢 PERSIAN CHARCOAL KOOBIDEH FEAST',
+        places: [
+          {
+            num: 'H',
+            id: 'hotel',
+            name: HOTEL.name,
+            catColor: HOTEL.catColor,
+            tag: HOTEL.tag,
+            coords: HOTEL.coords,
+            desc: HOTEL.desc
+          },
+          {
+            num: 'A',
+            id: 'gendarmenmarkt',
+            name: 'WeihnachtsZauber Gendarmenmarkt',
+            catColor: '#eab308',
+            tag: 'Christmas Market',
+            coords: [52.51361, 13.39278],
+            desc: 'Grand Opening Night! Heated tents, festive lights, and hot spiced cider.'
+          },
+          {
+            num: 'B',
+            id: 'kourosh',
+            name: 'Kourosh Restaurant (Famous Koobideh)',
+            catColor: '#ef4444',
+            tag: 'Famous Persian Koobideh',
+            coords: [52.50058, 13.34483],
+            desc: 'Lietzenburger Str. 20B. Famous charcoal-grilled Chelo Kabab Koobideh (€13.90), Royal Grill Platter for 2 (€40.90) with Koobideh, Barg, Djudje, buttery saffron rice, tahdig, and hot Persian tea!'
+          }
+        ],
+        transitSteps: [
+          {
+            name: 'Hotel ➔ Gendarmenmarkt',
+            time: '6 mins (U6) / 22 min walk',
+            walkTime: '22 min walk',
+            walkDist: '1.8 km',
+            route: 'Scenic walk north down Friedrichstraße (22 min) or walk 4 mins to U-Bahn Hallesches Tor and ride direct U6 to Stadtmitte (2 stops, 3 mins)!'
+          },
+          {
+            name: 'Gendarmenmarkt ➔ Kourosh Restaurant',
+            time: '14 mins (U2 direct)',
+            walkTime: '52 min walk',
+            walkDist: '4.2 km',
+            route: 'Direct U-Bahn U2 from Stadtmitte straight to Wittenbergplatz (6 stops, 9 mins direct!) + 5 min walk down Lietzenburger Str.'
+          }
+        ],
+        returnInfo: {
+          name: 'Kourosh Restaurant ➔ Hotel (Back)',
+          time: '10 mins direct (U1/U3)',
+          walkTime: '48 min walk',
+          walkDist: '3.8 km',
+          note: 'Super fast return! Walk 4 mins to U-Bahn Wittenbergplatz ➔ direct U1 or U3 subway straight to Möckernbrücke (5 stops, 7 mins!), stepping right out at your hotel door!'
+        }
+      },
+
+      2: {
+        date: 'Tuesday, November 24, 2026',
+        title: 'Day 2: Tropical Islands & Berlin’s Most Famous Sandwich',
+        sub: 'Full day of tropical pools, lagoons, and water slides at 26°C, then return directly to your hotel and take an easy 8-minute stroll down Mehringdamm for Berlin’s world-famous sandwich!',
+        foodType: '🥪 WORLD-FAMOUS SANDWICH (8-MIN WALK FROM HOTEL)',
+        places: [
+          {
+            num: 'H',
+            id: 'hotel',
+            name: HOTEL.name,
+            catColor: HOTEL.catColor,
+            tag: HOTEL.tag,
+            coords: HOTEL.coords,
+            desc: HOTEL.desc
+          },
+          {
+            num: 'A',
+            id: 'tropical',
+            name: 'Tropical Islands Resort',
+            catColor: '#10b981',
+            tag: 'Indoor Water Paradise',
+            coords: [52.03875, 13.74853],
+            desc: '26°C tropical rainforest, white sand beach, massive slides, lagoon & saunas.'
+          },
+          {
+            num: 'B',
+            id: 'mustafas',
+            name: 'Mustafa’s Gemüse Kebap (World-Famous Sandwich)',
+            catColor: '#ef4444',
+            tag: '8-Min Walk from Hotel',
+            coords: [52.4938, 13.3879],
+            desc: 'Mehringdamm 32 (only 750m / 8-9 min stroll from hotel door!). Berlin’s undisputed #1 street-food sandwich sensation: Crispy toasted bread stuffed with juicy roasted spiced chicken, grilled peppers, potatoes & zucchini, fresh herbs, feta cheese, and garlic yogurt sauce (€7.50). 100% chicken & veggies, zero pork! (Or try Sudanese toasted peanut sandwich at Sahara Imbiss right next door).'
+          }
+        ],
+        transitSteps: [
+          {
+            name: 'Hotel ➔ Tropical Islands (Go)',
+            time: '52 mins total (RE8 Train)',
+            walkTime: '13 hours (Not Walkable)',
+            walkDist: '65 km',
+            route: 'Walk 2 mins to U-Bahn Möckernbrücke ➔ U7 to Neukölln / S-Bahn to Ostkreuz (10 mins) ➔ direct RE8 train to Brand (38 mins) ➔ free 6-min shuttle to the dome.'
+          },
+          {
+            name: 'Tropical Islands ➔ Hotel in Kreuzberg',
+            time: '50 mins total (RE8 Train)',
+            walkTime: '13 hours (Train Required)',
+            walkDist: '65 km',
+            route: 'Shuttle to Brand ➔ direct RE8 train straight to Berlin Ostkreuz / Alexanderplatz ➔ quick U-Bahn back to Möckernbrücke right at the hotel!'
+          }
+        ],
+        returnInfo: {
+          name: 'Hotel ➔ Mustafa’s Sandwich ➔ Bed',
+          time: '8 min walk',
+          walkTime: '8 min walk',
+          walkDist: '750 m',
+          note: 'Drop your wet swim bags at the hotel, walk 8 mins down Mehringdamm for Berlin’s most famous toasted sandwich, and you are 8 mins from bed — zero travel exhaustion!'
+        }
+      },
+
+      3: {
+        date: 'Wednesday, November 25, 2026',
+        title: 'Day 3: Theme Park (Winterzeit), DARK MATTER & Jigar Foroshi (جگر)',
+        sub: 'Thrill rides & roller coasters at Lichtenberger Winterzeit, hypnotic lights at DARK MATTER, followed by charcoal-grilled fresh Lamb Liver Skewers (جگر داغ) at Doyum!',
+        foodType: '🫀 JIGAR FOROSHI (CHARCOAL LIVER SKEWERS)',
+        places: [
+          {
+            num: 'H',
+            id: 'hotel',
+            name: HOTEL.name,
+            catColor: HOTEL.catColor,
+            tag: HOTEL.tag,
+            coords: HOTEL.coords,
+            desc: HOTEL.desc
+          },
+          {
+            num: 'A',
+            id: 'winterzeit',
+            name: 'Lichtenberger Winterzeit (Theme Park)',
+            catColor: '#ec4899',
+            tag: 'Theme Park & Coasters',
+            coords: [52.5312, 13.4865],
+            desc: 'Berlin’s biggest winter amusement park! Roller coasters, Ferris Wheel, Break Dance & Drop Tower.'
+          },
+          {
+            num: 'B',
+            id: 'darkmatter',
+            name: 'DARK MATTER Berlin',
+            catColor: '#c084fc',
+            tag: 'Immersive Light Art',
+            coords: [52.49321, 13.48625],
+            desc: '7 pitch-black warehouse halls with kinetic light and 3D sound installations.'
+          },
+          {
+            num: 'C',
+            id: 'doyum',
+            name: 'Doyum Restaurant (جگر ذغالی / Charcoal Liver)',
+            catColor: '#ef4444',
+            tag: 'Charcoal Jigar Foroshi',
+            coords: [52.4988, 13.4182],
+            desc: 'Admiralstraße 36-37 (Kottbusser Tor). Legendary charcoal mangal (Ocakbaşı)! Famous for authentic fresh Lamb Liver Skewers (Kuzu Ciğer Şiş) grilled over glowing coals with sumac onions, fresh parsley, grilled peppers, and hot oven-baked flatbread (€14-€18)!'
+          }
+        ],
+        transitSteps: [
+          {
+            name: 'Hotel ➔ Theme Park (Go)',
+            time: '20 mins (Tram M6/M8)',
+            walkTime: '1h 20m walk (80 mins)',
+            walkDist: '6.2 km',
+            route: 'Direct Tram M6 or M8 from Hackescher Markt straight to Landsberger Allee / Rhinstraße at the entrance (or 80 min walk).'
+          },
+          {
+            name: 'Theme Park ➔ DARK MATTER',
+            time: '16 mins (Tram M17/M21)',
+            walkTime: '55 min walk',
+            walkDist: '4.5 km',
+            route: 'Direct Tram M17 or M21 south directly to Gustav-Meister-Weg outside DARK MATTER (or 55 min walk through Rummelsburg).'
+          },
+          {
+            name: 'DARK MATTER ➔ Doyum Jigar Foroshi',
+            time: '18 mins (Transit)',
+            walkTime: '60 min walk',
+            walkDist: '4.8 km',
+            route: 'Tram to Ostkreuz ➔ S-Bahn to Warschauer Str ➔ U1 to Kottbusser Tor (or 60 min scenic walk crossing Oberbaumbrücke into Kreuzberg).'
+          }
+        ],
+        returnInfo: {
+          name: 'Doyum Restaurant ➔ Hotel (Back)',
+          time: '6 mins direct (U1)',
+          walkTime: '22 min walk',
+          walkDist: '1.8 km',
+          note: 'Doyum is right in Kreuzberg! Take direct U-Bahn U1 from Kottbusser Tor to Möckernbrücke (3 stops, 4 mins) or enjoy a nice 22-min evening walk along the canal back to the hotel!'
+        }
+      },
+
+      4: {
+        date: 'Thursday, November 26, 2026',
+        title: 'Day 4: Luxury Vabali Spa & Bavarian Pork Knuckle Feast',
+        sub: '4 hours in steaming Balinese outdoor pools and saunas, followed by a massive Bavarian feast with crispy pork knuckle and wooden keg beer at Augustiner!',
+        foodType: '🍖 BAVARIAN PORK KNUCKLE & SCHNITZEL',
+        places: [
+          {
+            num: 'H',
+            id: 'hotel',
+            name: HOTEL.name,
+            catColor: HOTEL.catColor,
+            tag: HOTEL.tag,
+            coords: HOTEL.coords,
+            desc: HOTEL.desc
+          },
+          {
+            num: 'A',
+            id: 'vabali',
+            name: 'vabali spa Berlin',
+            catColor: '#10b981',
+            tag: 'Balinese Oasis',
+            coords: [52.52972, 13.36391],
+            desc: '20,000 m² authentic Balinese resort with outdoor heated pools, saunas, and fireside lounges.'
+          },
+          {
+            num: 'B',
+            id: 'augustiner',
+            name: 'Augustiner am Gendarmenmarkt',
+            catColor: '#84cc16',
+            tag: 'Famous Bavarian Beer Hall',
+            coords: [52.5132, 13.3895],
+            desc: 'Charlottenstraße 55. World-famous Bavarian beer hall! Crispy whole roasted pork knuckle (Schweinshaxe) with dark beer gravy and potato dumplings, golden Wiener Schnitzel, warm giant pretzels, and Augustiner beer poured from wooden casks (€17-€24).'
+          }
+        ],
+        transitSteps: [
+          {
+            name: 'Hotel ➔ vabali spa (Go)',
+            time: '18 mins (Transit)',
+            walkTime: '48 min walk',
+            walkDist: '3.8 km',
+            route: 'Walk 4 mins to U-Bahn Möckernbrücke ➔ U-Bahn/S-Bahn to Berlin Hbf + short walk through Fritz-Schloß-Park directly to the spa gates.'
+          },
+          {
+            name: 'vabali spa ➔ Augustiner Beer Hall',
+            time: '14 mins (Bus/S-Bahn)',
+            walkTime: '38 min walk',
+            walkDist: '3.1 km',
+            route: 'Beautiful 38-min stroll past the Reichstag (Parliament), Brandenburg Gate, and Unter den Linden to Gendarmenmarkt.'
+          }
+        ],
+        returnInfo: {
+          name: 'Augustiner ➔ Hotel (Back)',
+          time: '6 mins (U6 direct)',
+          walkTime: '22 min walk',
+          walkDist: '1.8 km',
+          note: 'Direct U6 subway from Stadtmitte to Hallesches Tor (2 stops, 3 mins) or a romantic 22-min stroll straight south down Friedrichstraße!'
+        }
+      },
+
+      5: {
+        date: 'Friday, November 27, 2026',
+        title: 'Day 5: Riverside Afternoon & Famous Affordable Steak Night',
+        sub: 'Relax right on the Spree river deck at Holzmarkt 25, followed by prime flame-grilled ribeye steaks, baked potato, and garlic bread at Block House!',
+        foodType: '🥩 FAMOUS FLAME-GRILLED STEAKS',
+        places: [
+          {
+            num: 'H',
+            id: 'hotel',
+            name: HOTEL.name,
+            catColor: HOTEL.catColor,
+            tag: HOTEL.tag,
+            coords: HOTEL.coords,
+            desc: HOTEL.desc
+          },
+          {
+            num: 'A',
+            id: 'holzmarkt',
+            name: 'Holzmarkt 25',
+            catColor: '#eab308',
+            tag: 'Riverside Village',
+            coords: [52.51172, 13.42784],
+            desc: 'Creative open-air village directly on the water with open fire barrels and Spree river views.'
+          },
+          {
+            num: 'B',
+            id: 'blockhouse',
+            name: 'Block House (Famous Steakhouse)',
+            catColor: '#dc2626',
+            tag: 'Germany’s Famous Steakhouse',
+            coords: [52.5218, 13.4105],
+            desc: 'Karl-Liebknecht-Str. 7 (Alexanderplatz). Germany’s most famous steakhouse since 1968! Juicy, tender 200g-350g Ribeye and Rumpsteaks grilled over open flame, served with their iconic giant baked potato, sour cream, and crispy garlic bread (€19-€27 complete meal)!'
+          }
+        ],
+        transitSteps: [
+          {
+            name: 'Hotel ➔ Holzmarkt 25 (Go)',
+            time: '15 mins (U1 direct)',
+            walkTime: '42 min walk',
+            walkDist: '3.5 km',
+            route: 'Direct U-Bahn U1 from Möckernbrücke straight to Warschauer Straße or Jannowitzbrücke directly to the riverside village.'
+          },
+          {
+            name: 'Holzmarkt ➔ Block House Steak',
+            time: '8 mins (S-Bahn)',
+            walkTime: '18 min walk',
+            walkDist: '1.4 km',
+            route: 'Straightforward 18-min walk north up Alexanderstraße into Alexanderplatz (or 1 stop on S-Bahn).'
+          }
+        ],
+        returnInfo: {
+          name: 'Block House ➔ Hotel (Back)',
+          time: '14 mins (Transit)',
+          walkTime: '35 min walk',
+          walkDist: '2.8 km',
+          note: 'Take S-Bahn/U-Bahn back to Möckernbrücke / Hallesches Tor, or enjoy a 35-min stroll past Gendarmenmarkt and Checkpoint Charlie.'
+        }
+      },
+
+      6: {
+        date: 'Saturday, November 28, 2026',
+        title: 'Day 6: Hearty Farewell Meal & Direct Train to Amsterdam',
+        sub: 'Enjoy a rich hearty morning meal in Mitte before boarding the direct 13:06 train back to Amsterdam Centraal.',
+        foodType: '🚆 FAREWELL MEAL & RETURN HOME',
+        places: [
+          {
+            num: 'H',
+            id: 'hotel',
+            name: HOTEL.name,
+            catColor: HOTEL.catColor,
+            tag: HOTEL.tag,
+            coords: HOTEL.coords,
+            desc: HOTEL.desc
+          },
+          {
+            num: 'A',
+            id: 'hbf',
+            name: 'Berlin Hauptbahnhof',
+            catColor: '#38bdf8',
+            tag: 'Return Train',
+            coords: [52.525589, 13.369548],
+            desc: 'Board your direct Deutsche Bahn IC 148 train back to Amsterdam Centraal (departs 13:06, arrives 19:00).'
+          }
+        ],
+        transitSteps: [
+          {
+            name: 'Hotel ➔ Breakfast by Canal',
+            time: '3 min walk',
+            walkTime: '3 min walk',
+            walkDist: '250 m',
+            route: 'Relax with artisan coffee and warm bakery pastries right along the Landwehrkanal.'
+          },
+          {
+            name: 'Hotel ➔ Berlin Hbf (Station)',
+            time: '12 mins (S-Bahn direct)',
+            walkTime: '42 min walk',
+            walkDist: '3.5 km',
+            route: 'Walk 5 mins to S-Bahn Anhalter Bahnhof ➔ ride S1/S2/S25 to Friedrichstraße ➔ 1 stop to Berlin Hbf (12 mins total).'
+          },
+          {
+            name: 'Berlin Hbf ➔ Amsterdam Centraal',
+            time: '5h 50m direct train',
+            walkTime: 'Train Required (650 km)',
+            walkDist: '650 km',
+            route: 'Direct Intercity train departs at 13:06, arriving Amsterdam Centraal at 19:00.'
+          }
+        ],
+        returnInfo: {
+          name: 'Arrival in Amsterdam',
+          time: '19:00',
+          walkTime: 'N/A',
+          walkDist: '650 km',
+          note: 'Back home at Amsterdam Centraal rested, full of great food and great memories!'
+        }
+      }
+    };
+
+    // --- Initialize Leaflet Map ---
+    const map = L.map('map', {
+      center: [52.5200, 13.4000],
+      zoom: 13,
+      zoomControl: true
+    });
+
+    // Clean OpenStreetMap Germany tiles
+    L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let activeMarkers = [];
+    let currentPolylines = [];
+
+    function clearMap() {
+      activeMarkers.forEach(m => map.removeLayer(m));
+      activeMarkers = [];
+      currentPolylines.forEach(l => map.removeLayer(l));
+      currentPolylines = [];
+    }
+
+    function createMarker(p) {
+      const html = `<div class="custom-map-pin" style="background-color: ${p.catColor};">${p.num}</div>`;
+      const icon = L.divIcon({
+        className: 'custom-pin',
+        html: html,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13],
+        popupAnchor: [0, -13]
+      });
+
+      const m = L.marker(p.coords, { icon: icon }).addTo(map);
+      m.bindPopup(`
+        <div class="popup-box">
+          <span class="popup-pill" style="color:${p.catColor}; border:1px solid ${p.catColor};">${p.tag}</span>
+          <h3 style="margin-top:5px;">${p.name}</h3>
+          <p>${p.desc}</p>
+        </div>
+      `);
+      activeMarkers.push(m);
+      return m;
+    }
+
+    function selectDay(d) {
+      document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('btnDay' + d);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      clearMap();
+      const dayData = DAYS_DATA[d];
+      if (!dayData) return;
+
+      const createdMarkers = dayData.places.map(p => createMarker(p));
+
+      if (dayData.places.length > 1) {
+        const coords = dayData.places.map(p => p.coords);
+        const polyline = L.polyline(coords, {
+          color: '#ef4444',
+          weight: 4,
+          dashArray: '7, 8',
+          opacity: 0.9
+        }).addTo(map);
+        currentPolylines.push(polyline);
+      }
+
+      const group = new L.featureGroup(createdMarkers);
+      map.fitBounds(group.getBounds(), { padding: [70, 70], maxZoom: 14 });
+
+      const sidebar = document.getElementById('sidebar');
+      let stepsHtml = dayData.transitSteps.map(s => `
+        <div class="transit-step">
+          <div class="step-icon">➔</div>
+          <div class="step-content">
+            <div class="step-header">
+              <span class="step-name">${s.name}</span>
+              <div class="step-badge-group">
+                <span class="step-walk">🚶 ${s.walkTime} (${s.walkDist})</span>
+                <span class="step-time">🚇 ${s.time}</span>
+              </div>
+            </div>
+            <div class="step-route">${s.route}</div>
+          </div>
+        </div>
+      `).join('');
+
+      let placesCardsHtml = dayData.places.map(p => `
+        <div class="place-card" onclick="focusCoord([${p.coords}])">
+          <div class="card-header">
+            <span class="pin-num" style="background:${p.catColor};">${p.num}</span>
+            <span class="place-name">${p.name}</span>
+            <span class="place-tag" style="color:${p.catColor}; border:1px solid ${p.catColor};">${p.tag}</span>
+          </div>
+          <div class="place-desc">${p.desc}</div>
+        </div>
+      `).join('');
+
+      sidebar.innerHTML = `
+        <div class="food-highlight-banner">
+          🍽️ <strong>Today’s Food Feature: ${dayData.foodType}</strong><br>
+          Real meat, crispy knuckles, fresh charcoal skewers & flame steaks!
+        </div>
+
+        <div class="day-banner">
+          <div class="day-banner-title">📅 ${dayData.title}</div>
+          <div class="day-banner-sub">${dayData.sub}</div>
+        </div>
+
+        <div class="transit-schedule">
+          <strong style="font-size:11.5px; text-transform:uppercase; letter-spacing:0.5px; color:#ef4444;">
+            🚶 Walking Minutes vs 🚇 Transit Times
+          </strong>
+          ${stepsHtml}
+          <div class="return-strip">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; gap:6px; flex-wrap:wrap;">
+              <span>↩️ <strong>Return Back to Hotel:</strong></span>
+              <div class="step-badge-group">
+                ${dayData.returnInfo.walkTime !== 'N/A' ? `<span class="step-walk">🚶 ${dayData.returnInfo.walkTime} (${dayData.returnInfo.walkDist})</span>` : ''}
+                <span class="step-time">🚇 ${dayData.returnInfo.time}</span>
+              </div>
+            </div>
+            <div style="font-size:10.5px; color:#cbd5e1;">${dayData.returnInfo.note}</div>
+          </div>
+        </div>
+
+        <div style="font-size:11.5px; font-weight:800; text-transform:uppercase; color:#94a3b8; margin-top:3px;">
+          📍 Today's Locations (${dayData.places.length})
+        </div>
+        ${placesCardsHtml}
+      `;
+    }
+
+    function focusCoord(coord) {
+      map.flyTo(coord, 14, { duration: 0.8 });
+    }
+
+    function showAll() {
+      document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('btnAll').classList.add('active');
+      clearMap();
+
+      const allUnique = [];
+      const seen = new Set();
+      for (const d in DAYS_DATA) {
+        DAYS_DATA[d].places.forEach(p => {
+          if (!seen.has(p.id)) {
+            seen.add(p.id);
+            allUnique.push(p);
+          }
+        });
+      }
+
+      const created = allUnique.map(p => createMarker(p));
+      const group = new L.featureGroup(created);
+      map.fitBounds(group.getBounds(), { padding: [50, 50] });
+
+      const sidebar = document.getElementById('sidebar');
+      sidebar.innerHTML = `
+        <div class="day-banner">
+          <div class="day-banner-title">🗺️ Complete Trip Overview (Meat & Steaks Edition)</div>
+          <div class="day-banner-sub">Select any day above to see ONLY that day's spots, exact travel times, and your authentic steak, German, or skewer destination!</div>
+        </div>
+        ${allUnique.map(p => `
+          <div class="place-card" onclick="focusCoord([${p.coords}])">
+            <div class="card-header">
+              <span class="pin-num" style="background:${p.catColor};">${p.num}</span>
+              <span class="place-name">${p.name}</span>
+              <span class="place-tag" style="color:${p.catColor}; border:1px solid ${p.catColor};">${p.tag}</span>
+            </div>
+            <div class="place-desc">${p.desc}</div>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    // Default to Day 1
+    selectDay(1);
+  </script>
+</body>
+</html>
